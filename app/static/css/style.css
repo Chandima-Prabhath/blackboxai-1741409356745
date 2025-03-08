@@ -1,0 +1,41 @@
+/* Custom styles */
+.upload-zone {
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover {
+    background-color: rgba(79, 70, 229, 0.05);
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+.video-preview {
+    aspect-ratio: 16/9;
+    background: #000;
+}
+
+.modal-backdrop {
+    backdrop-filter: blur(2px);
+}
+
+.status-badge {
+    transition: all 0.3s ease;
+}
+
+.job-row {
+    transition: background-color 0.2s ease;
+}
+
+.job-row:hover {
+    background-color: rgba(79, 70, 229, 0.05);
+}
+
+.quality-button {
+    transition: all 0.2s ease;
+}
+
+.quality-button:hover {
+    transform: translateY(-1px);
+}
