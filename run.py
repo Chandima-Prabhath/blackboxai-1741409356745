@@ -1,15 +1,13 @@
-import os
 from app import create_app
-from app.config import Config
+import argparse
 
-# Create Flask application instance
-app = create_app(Config)
+def main():
+    parser = argparse.ArgumentParser(description='Run the Media Encoder Service')
+    parser.add_argument('--port', type=int, default=5000, help='Port to run the service on')
+    args = parser.parse_args()
+
+    app = create_app()
+    app.run(host='0.0.0.0', port=args.port, debug=True)
 
 if __name__ == '__main__':
-    # Create required directories
-    Config().UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
-    Config().ENCODED_FOLDER.mkdir(parents=True, exist_ok=True)
-    
-    # Run the application
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    main()

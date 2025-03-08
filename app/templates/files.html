@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Files - Media Encoder Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#475569',
+                            500: '#64748b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+    </style>
+</head>
+<body class="text-gray-100">
+    <nav class="bg-dark-800 border-b border-dark-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-video text-indigo-500 text-2xl mr-2"></i>
+                    <h1 class="text-xl font-semibold">Media Encoder Dashboard</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-300 hover:text-gray-100">Home</a>
+                    <a href="/files" class="text-indigo-400 hover:text-indigo-300">Files</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="bg-dark-800 border border-dark-700 shadow rounded-lg p-6">
+            <h2 class="text-lg font-medium mb-4">Encoded Files</h2>
+            <div id="fileList" class="space-y-4">
+                <!-- Files will be listed here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Video Preview Modal -->
+    <div id="videoModal" class="hidden fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-dark-800 border border-dark-700 rounded-lg p-6 max-w-4xl w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium">Video Preview</h3>
+                <button onclick="closeVideoModal()" class="text-gray-400 hover:text-gray-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="aspect-w-16 aspect-h-9">
+                <video id="videoPlayer" controls class="w-full rounded-lg">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-dark-800 border border-dark-700 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-medium mb-4">Confirm Deletion</h3>
+            <p class="text-gray-300 mb-6">Are you sure you want to delete this job and all its associated files? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-dark-600 text-gray-300 rounded hover:bg-dark-500 transition-colors">
+                    Cancel
+                </button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                data.files.forEach(file => {
+                    const fileCard = document.createElement('div');
+                    fileCard.className = 'bg-dark-700 rounded-lg p-4 hover:bg-dark-600 transition-colors duration-200';
+                    fileCard.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="space-y-1">
+                                <h3 class="text-lg font-medium text-gray-100">${file.output_name}</h3>
+                                <p class="text-sm text-gray-400">Job ID: ${file.job_id}</p>
+                                <p class="text-sm text-gray-400">Created: ${formatDate(file.created_at)}</p>
+                                ${file.completed_at ? `<p class="text-sm text-gray-400">Completed: ${formatDate(file.completed_at)}</p>` : ''}
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="flex flex-col items-end space-y-2">
+                                    ${Object.entries(file.qualities).map(([quality, size]) => `
+                                        <div class="flex items-center space-x-2">
+                                            <button onclick="playVideo('${file.job_id}', '${quality}', '${file.output_name}')" 
+                                                    class="text-xs bg-dark-600 hover:bg-dark-500 px-3 py-1.5 rounded transition-all duration-300">
+                                                <i class="fas fa-play mr-1"></i>${quality}
+                                            </button>
+                                            <a href="/video/${file.job_id}/${quality}"
+                                               download="${file.output_name}_${quality}.mp4"
+                                               class="text-xs bg-indigo-900 hover:bg-indigo-800 text-indigo-300 px-2 py-1.5 rounded transition-all duration-300">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <span class="text-xs text-gray-400">${formatFileSize(size)}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <button onclick="showDeleteConfirmation('${file.job_id}')" 
+                                        class="text-xs bg-red-900 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded transition-all duration-300">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    fileList.appendChild(fileCard);
+                });
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+
+        function playVideo(jobId, quality, outputName) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoModal = document.getElementById('videoModal');
+            videoPlayer.src = `/video/${jobId}/${quality}`;
+            videoModal.classList.remove('hidden');
+        }
+
+        function closeVideoModal() {
+            const videoModal = document.getElementById('videoModal');
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoModal.classList.add('hidden');
+            videoPlayer.pause();
+            videoPlayer.src = '';
+        }
+
+        let jobToDelete = null;
+
+        function showDeleteConfirmation(jobId) {
+            jobToDelete = jobId;
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            jobToDelete = null;
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!jobToDelete) return;
+
+            try {
+                const response = await fetch(`/api/jobs/${jobToDelete}/clean`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    closeConfirmModal();
+                    loadFiles();
+                } else {
+                    alert('Failed to delete job');
+                }
+            } catch (error) {
+                console.error('Error deleting job:', error);
+                alert('Error deleting job');
+            }
+        });
+
+        // Close modals when clicking outside
+        window.addEventListener('click', (e) => {
+            const videoModal = document.getElementById('videoModal');
+            const confirmModal = document.getElementById('confirmModal');
+            if (e.target === videoModal) closeVideoModal();
+            if (e.target === confirmModal) closeConfirmModal();
+        });
+
+        // Load files on page load
+        loadFiles();
+
+        // Refresh files list every 30 seconds
+        setInterval(loadFiles, 30000);
+    </script>
+</body>
+</html>
