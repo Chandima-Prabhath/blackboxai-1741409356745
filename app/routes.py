@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file, current_app
+from flask import Blueprint, request, jsonify, send_file, current_app, render_template, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 from pathlib import Path
@@ -15,6 +15,22 @@ from app.utils import (
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+# Create a main blueprint for non-api routes
+main_bp = Blueprint('main', __name__)
+
+@main_bp.route('/')
+def index():
+    """Render the dashboard page."""
+    return render_template('index.html')
+
+@main_bp.route('/favicon.ico')
+def favicon():
+    """Serve the favicon."""
+    return send_from_directory(
+        os.path.join(current_app.root_path, 'static'),
+        'favicon.ico', mimetype='image/vnd.microsoft.icon'
+    )
 
 @api_bp.route('/upload', methods=['POST'])
 def upload_video():
